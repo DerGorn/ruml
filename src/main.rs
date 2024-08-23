@@ -54,12 +54,20 @@ fn main() {
                         }
                     }
                 }
-                println!("{}", render_plantuml(entities));
-                exit(0)
+                std::fs::write("output.txt", format!("{}", render_plantuml(entities))).unwrap();
+            } else {
+                let entities = file_parser(parse_syntax(source));
+                std::fs::write("output.txt", format!("{}", render_plantuml(entities))).unwrap();
             }
-
-            let entities = file_parser(parse_syntax(source));
-            println!("{}", render_plantuml(entities))
+            // std::process::Command::new("java")
+            //     .args(&[
+            //         "-jar",
+            //         "C:\\Users\\DarkL\\Downloads\\plantuml-1.2024.6.jar",
+            //         "-tsvg",
+            //         "output.txt",
+            //     ])
+            //     .spawn()
+            //     .unwrap();
         }
     }
 }

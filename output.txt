@@ -1,0 +1,779 @@
+@startuml
+
+class "Animation" {
+    {field} + sprite_sheet: SpriteSheetName
+    {field} + keyframes: Vec<(Duration,T)>
+    {field} + current_keyframe: usize
+    {field} + time_since_frame_start: Duration
+    {field} + once: bool
+    {field} + running: bool
+}
+
+class "BattleAction" {
+    {field} + time: f32
+    {field} + character_index: usize
+    {field} + skill_index: usize
+    {field} + target_character_index: usize
+}
+
+class "BattleActionManager" {
+    {field} + actions: Vec<BattleAction>
+}
+
+class "NoKI" {
+}
+
+class "SimpleKI" {
+}
+
+enum "CharacterAlignment" {
+    Friendly
+    Enemy
+}
+
+class "Character" {
+    {field} + name: &'staticstr
+    {field} + alignment: CharacterAlignment
+    {field} + max_health: u16
+    {field} + health: u16
+    {field} + max_stamina: u16
+    {field} + stamina: u16
+    {field} + exhaustion_threshold: u16
+    {field} + exhaustion: u16
+    {field} + speed: u16
+    {field} + attack: u16
+}
+
+class "BiaKarui" {
+    {field} + health: u16
+    {field} + stamina: u16
+    {field} + exhaustion: u16
+}
+
+class "BiaKaruiGui" {
+}
+
+class "DefaultGui" {
+}
+
+class "SkilledCharacter" {
+    {field} + character: Character
+    {field} + skills: Vec<Box<dynSkill>>
+    {field} + ki: Box<dynKIBehavior>
+    {field} + gui: Box<dynCharacterGui>
+}
+
+class "AttackSkill" {
+}
+
+class "HealSkill" {
+}
+
+enum "TargetGroup" {
+    Ownself
+    Friends
+    Enemies
+}
+
+enum "Color" {
+    {field} RGBA(u8, u8, u8, u8)
+    {field} HSVA(u8, u8, u8, u8)
+}
+
+class "Background" {
+    {field} + name: EntityName
+    {field} + sprite_sheet: SpriteSheetName
+    {field} + size: PhysicalSize<u16>
+}
+
+class "BattleManager" {
+    {field} + gui: Box<FlexButtonLineManager>
+}
+
+class "Enemy" {
+    {field} + name: EntityName
+    {field} + size: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + animation: Animation<SpritePosition>
+    {field} + enemy_type: EnemyType
+}
+
+class "Player" {
+    {field} + name: EntityName
+    {field} + size: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + velocity: VelocityController
+    {field} + animation: Animation<SpritePosition>
+}
+
+enum "TransitionTypes" {
+    BattleTransition
+}
+
+class "Transition" {
+    {field} + name: EntityName
+    {field} + animation: Animation<(Vec<SimpleVertex>,Vec<Index>)>
+    {field} + time: f32
+    {field} + transition_time: f32
+    {field} + running: bool
+}
+
+enum "BattleEvent" {
+    NextAction
+    ActionConsequences
+}
+
+enum "EntityEvent" {
+    {field} BattleHighlightValidSkillTargets(Vec<EntityName>)
+    {field} AnimateAction(Vec<Character>)
+    {field} CharacterDeath(EntityName)
+}
+
+enum "Event" {
+    EndGame
+    {field} RequestNewScenes(Vec<Scene<Self>>)
+    {field} NewScene(SceneName)
+    {field} UpdateUniformBuffer(UniformBufferName, Vec<u8>)
+    {field} InitiateBattle(EnemyType, EntityName, SceneName)
+    {field} AnimationEnded(EntityName)
+    {field} RequestSuspendScene(SceneName)
+    {field} RequestActivateSuspendedScene(SceneName)
+    {field} RequestDeleteScene(SceneName)
+    {field} RequestDeleteEntity(EntityName, SceneName)
+    {field} RequestSetVisibilityScene(SceneName, Visibility)
+    {field} ButtonPressed(EntityName, KeyCode)
+    {field} BattleEvent(BattleEvent)
+    {field} RequestAddEntities(Vec<Box<dynEntity<Type,Self>>>, SceneName)
+    {field} EntityEvent(EntityName, EntityEvent)
+    {field} RequestRenderScene(SceneName)
+}
+
+class "BoundingBox" {
+    {field} + anchor: Vector<f32>
+    {field} + size: PhysicalSize<f32>
+}
+
+class "CameraUniform" {
+    {field} + view: [[f32;2];3]
+}
+
+class "CameraDescriptor" {
+    {field} + view_size: PhysicalSize<f32>
+    {field} + speed: f32
+    {field} + acceleration_steps: u32
+    {field} + target_entity: EntityName
+    {field} + bound_entity: Option<EntityName>
+    {field} + max_offset_position: f32
+}
+
+enum "CameraUpdateFailed" {
+    {field} NoTargetEntity(EntityName)
+    {field} NOBoundEntity(EntityName)
+}
+
+class "Camera" {
+    {field} + position: Vector<f32>
+    {field} + offset_position: Vector<f32>
+    {field} + max_offset: f32
+    {field} + decceleration_factor: f32
+    {field} + velocity: VelocityController
+    {field} + view_size: PhysicalSize<f32>
+    {field} + target_entity: EntityName
+    {field} + bound_entity: Option<EntityName>
+}
+
+enum "GameEvent" {
+    {field} Timer(Duration)
+    Resumed
+    {field} NewWindow(WindowId, WindowName)
+    {field} RequestNewWindow(WindowDescriptor, WindowName)
+    {field} RenderUpdate(RenderSceneName, VertexBuffer, IndexBuffer)
+    {field} NewSpriteSheet(SpriteSheetName, Option<u32>)
+    {field} RequestNewSpriteSheet(SpriteSheetName, PathBuf)
+    {field} NewRenderScene(RenderSceneName)
+    {field} RequestNewRenderScene(WindowId, RenderSceneName, ShaderDescriptor, RenderSceneDescriptor, Vec<(UniformBufferName,Vec<u8>,wgpu::ShaderStages)>)
+    {field} RequestSetVisibilityRenderScene(RenderSceneName, Visibility)
+    {field} External(E)
+    EndGame
+}
+
+class "Game" {
+    {field} + ressources: RessourceDescriptor
+    {field} + active_scenes: Vec<Scene<E>>
+    {field} + pending_scenes: Vec<Scene<E>>
+    {field} + suspended_scenes: Vec<Scene<E>>
+    {field} + window_ids: Vec<(WindowName,WindowId)>
+    {field} + window_sizes: Vec<(WindowId,PhysicalSize<u32>)>
+    {field} + sprite_sheets: Vec<(SpriteSheetName,SpriteSheet)>
+    {field} + cameras: Vec<(SceneName,Camera,UniformBufferName)>
+    {field} + target_fps: u8
+    {field} + state: S
+}
+
+class "RessourceDescriptor" {
+    {field} + windows: Vec<(WindowName,WindowDescriptor)>
+    {field} + image_directory: PathBuf
+    {field} + sprite_sheets: Vec<(SpriteSheetName,PathBuf,SpriteSheetDimensions)>
+    {field} + uniforms: Vec<(UniformBufferName,Vec<u8>,wgpu::ShaderStages)>
+    {field} + default_render_scene: (Option<CameraDescriptor>,RenderSceneDescriptor)
+    {field} + render_scenes: Vec<(Vec<RenderSceneName>,Option<CameraDescriptor>,RenderSceneDescriptor)>
+}
+
+class "Scene" {
+    {field} + name: SceneName
+    {field} + shader_descriptor: ShaderDescriptor
+    {field} + render_scene: RenderSceneName
+    {field} + target_window: WindowName
+    {field} + entities: Vec<Box<dynEntity<E::EntityType,E>>>
+    {field} + z_index: i32
+}
+
+class "TextureCoordinates" {
+    {field} + u: f32
+    {field} + v: f32
+}
+
+class "SpritePosition" {
+    {field} + x: u8
+    {field} + y: u8
+}
+
+class "SpriteSheetDimensions" {
+    {field} + rows: u8
+    {field} + columns: u8
+}
+
+class "SpriteSheet" {
+    {field} + texture: u32
+    {field} + sprites_per_row: u8
+    {field} + sprites_per_column: u8
+}
+
+enum "Direction" {
+    Up
+    Right
+    Down
+    Left
+}
+
+class "VelocityController" {
+    {field} + speed: f32
+    {field} + up: bool
+    {field} + right: bool
+    {field} + down: bool
+    {field} + left: bool
+}
+
+class "KeyBindings" {
+    {field} + accept: Vec<KeyCode>
+    {field} + cancel: Vec<KeyCode>
+    {field} + check: Vec<KeyCode>
+}
+
+class "GameLogic" {
+    {field} + pending_battle: Option<(EnemyType,EntityName,SceneName)>
+    {field} + game_state: GameState
+    {field} + key_bindings: KeyBindings
+}
+
+class "BattleState" {
+    {field} + characters: Vec<SkilledCharacter>
+    {field} + current_time: f32
+    {field} + actions: BattleActionManager
+}
+
+enum "GameState" {
+    MainMenu
+    {field} Battle(BattleState, UIState)
+}
+
+enum "UIState" {
+    CharacterSelection
+    {field} CharacterDetail(Box<UIState>)
+    {field} ActionSelection(usize)
+    {field} TargetSelection(usize, usize)
+}
+
+enum "Visibility" {
+    Visible
+    Hidden
+}
+
+class "GraphicsProvider" {
+    {field} + instance: wgpu::Instance
+    {field} + adapter: Option<wgpu::Adapter>
+    {field} + device: Option<wgpu::Device>
+    {field} + queue: Option<wgpu::Queue>
+    {field} + surfaces: Vec<(WindowId,Box<dynWindowSurface>)>
+    {field} + render_scenes: Vec<(WindowId,RenderScene,wgpu::ShaderModule,ShaderDescriptor)>
+    {field} + texture_provider: Option<TextureProvider>
+    {field} + uniform_buffers: Vec<(RenderSceneName,UniformBufferName)>
+}
+
+class "RenderSceneDescriptor" {
+    {field} + index_format: wgpu::IndexFormat
+    {field} + vertex_buffer_layout: wgpu::VertexBufferLayout<'static>
+    {field} + use_textures: bool
+}
+
+class "RenderScene" {
+    {field} + name: RenderSceneName
+    {field} + render_pipeline: Option<wgpu::RenderPipeline>
+    {field} + vertex_buffer: wgpu::Buffer
+    {field} + index_buffer: wgpu::Buffer
+    {field} + num_indices: u32
+    {field} + num_vertices: u32
+    {field} + index_format: wgpu::IndexFormat
+    {field} + vertex_buffer_layout: wgpu::VertexBufferLayout<'static>
+    {field} + use_textures: bool
+    {field} + uniform_buffers: Vec<(UniformBufferName,wgpu::Buffer,wgpu::BindGroupLayout,wgpu::BindGroup)>
+    {field} + visibility: Visibility
+}
+
+class "ShaderDescriptor" {
+    {field} + file: &'staticstr
+    {field} + vertex_shader: &'staticstr
+    {field} + fragment_shader: &'staticstr
+    {field} + uniforms: &'static[&'staticstr]
+}
+
+class "Surface" {
+    {field} + wgpu_surface: wgpu::Surface<'a>
+    {field} + config: wgpu::SurfaceConfiguration
+}
+
+class "TextureProvider" {
+    {field} + bind_group_layout: Option<wgpu::BindGroupLayout>
+    {field} + bind_group: Option<wgpu::BindGroup>
+    {field} + textures: Vec<Texture>
+    {field} + current_id: u32
+}
+
+class "Texture" {
+    {field} + texture: wgpu::Texture
+    {field} + view: wgpu::TextureView
+    {field} + sampler: wgpu::Sampler
+    {field} + label: Option<String>
+}
+
+enum "Type" {
+    Background
+    Player
+    Enemy
+    Menu
+    Controller
+}
+
+enum "EnemyType" {
+    Frog
+}
+
+class "IndexBuffer" {
+    {field} + indices: Vec<u8>
+    {field} + num_indices: u32
+}
+
+class "VertexBuffer" {
+    {field} + vertices: Vec<u8>
+    {field} + num_vertices: u32
+}
+
+class "ManagerApplication" {
+    {field} + event_manager: M
+    {field} + window_manager: WindowManager<E>
+    {field} + graphics_provider: GraphicsProvider
+}
+
+class "WindowDescriptor" {
+    {field} + attributes: WindowAttributes
+    {field} + cursor_path: Option<&'staticstr>
+    {field} + icon_path: Option<&'staticstr>
+}
+
+class "WindowManager" {
+    {field} + windows: Vec<Window>
+    {field} + event_loop: Option<EventLoopProxy<E>>
+}
+
+enum "FlexDirection" {
+    X
+    Y
+}
+
+enum "Alignment" {
+    Start
+    End
+    Center
+}
+
+enum "FlexOrigin" {
+    Start
+    End
+    Center
+}
+
+class "FlexBox" {
+    {field} + flex_direction: FlexDirection
+    {field} + flex_origin: FlexOrigin
+    {field} + align_content: Alignment
+    {field} + background_image: Option<(SpriteSheetName,SpritePosition)>
+    {field} + gap: f32
+    {field} + dimensions: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + children: Vec<Box<dynFlexItem>>
+    {field} + name: EntityName
+    {field} + shrink_to_content: bool
+    {field} + number_of_sprites: Vec<usize>
+    {field} + is_dirty: bool
+}
+
+class "ColorPair" {
+    {field} + high: Color
+    {field} + low: Color
+}
+
+class "BorderBoxStyle" {
+    {field} + focus: ColorPair
+    {field} + unfocus: ColorPair
+    {field} + highlight: ColorPair
+}
+
+class "ImageStyle" {
+    {field} + sprite_sheet: SpriteSheetName
+    {field} + focus_sprite: SpritePosition
+    {field} + unfocus_sprite: SpritePosition
+    {field} + highlight_sprite: SpritePosition
+}
+
+class "BackgroundImageStyle" {
+    {field} + focus: Color
+    {field} + unfocus: Color
+    {field} + highlight: Color
+    {field} + sprite_sheet: SpriteSheetName
+    {field} + focus_sprite: SpritePosition
+    {field} + unfocus_sprite: SpritePosition
+    {field} + highlight_sprite: SpritePosition
+}
+
+class "PlainStyle" {
+    {field} + focus: Color
+    {field} + unfocus: Color
+    {field} + highlight: Color
+}
+
+class "UnderLineStyle" {
+    {field} + focus: Color
+    {field} + unfocus: Color
+    {field} + highlight: Color
+}
+
+enum "ButtonStyle" {
+    {field} BorderBox(BorderBoxStyle)
+    {field} Image(ImageStyle)
+    {field} BackgroundImage(BackgroundImageStyle)
+    {field} Plain(PlainStyle)
+    {field} UnderLine(UnderLineStyle)
+}
+
+class "Button" {
+    {field} + position: Vector<f32>
+    {field} + name: EntityName
+    {field} + text: Text
+    {field} + is_dirty: bool
+    {field} + is_focused: bool
+    {field} + is_highlighted: bool
+    {field} + style: ButtonStyle
+}
+
+class "FlexInputManager" {
+    {field} + flex_direction: FlexDirection
+    {field} + flex_origin: FlexOrigin
+    {field} + align_content: Alignment
+    {field} + background_image: Option<(SpriteSheetName,SpritePosition)>
+    {field} + gap: f32
+    {field} + dimensions: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + children: Vec<Box<T>>
+    {field} + name: EntityName
+    {field} + shrink_to_content: bool
+    {field} + number_of_sprites: Vec<usize>
+    {field} + is_dirty: bool
+    {field} + focused_child: Option<usize>
+    {field} + has_focus: bool
+    {field} + up_keys: Vec<PhysicalKey>
+    {field} + down_keys: Vec<PhysicalKey>
+}
+
+class "Image" {
+    {field} + dimensions: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + name: EntityName
+    {field} + image: (SpriteSheetName,SpritePosition)
+    {field} + blend_color: Option<Color>
+    {field} + is_dirty: bool
+}
+
+class "FontSize" {
+}
+
+class "Text" {
+    {field} + text: String
+    {field} + color: Color
+    {field} + name: EntityName
+    {field} + size: PhysicalSize<u16>
+    {field} + max_size: PhysicalSize<u16>
+    {field} + position: Vector<f32>
+    {field} + sprite_sheet: SpriteSheetName
+    {field} + font_size: FontSize
+    {field} + fit_to_content: bool
+    {field} + is_dirty: bool
+}
+
+class "Vertex" {
+    {field} + position: [f32;2]
+    {field} + tex_coords: [f32;2]
+    {field} + texture: u32
+}
+
+class "SimpleVertex" {
+    {field} + position: [f32;2]
+}
+
+class "UiVertex" {
+    {field} + position: [f32;2]
+    {field} + tex_coords: [f32;2]
+    {field} + texture: u32
+    {field} + color: u32
+}
+
+
+
+
+"BattleActionManager" <-- "Vec<BattleAction>"
+
+
+
+
+
+
+
+
+"Character" <-- "CharacterAlignment"
+
+
+
+
+
+
+
+
+"SkilledCharacter" <-- "Character"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"Enemy" <-- "Animation<SpritePosition>"
+"Enemy" <-- "EnemyType"
+
+
+"Player" <-- "VelocityController"
+"Player" <-- "Animation<SpritePosition>"
+
+
+
+
+"Transition" <-- "Animation<(Vec<SimpleVertex>,Vec<Index>)>"
+
+
+
+
+"EntityEvent" <-- "Vec<Character>"
+
+
+"Event" <-- "Vec<Scene<Self>>"
+"Event" <-- "EnemyType, EntityName, SceneName"
+"Event" <-- "SceneName, Visibility"
+"Event" <-- "BattleEvent"
+"Event" <-- "Vec<Box<dynEntity<Type,Self>>>, SceneName"
+"Event" <-- "EntityName, EntityEvent"
+
+
+
+
+
+
+
+
+
+
+"Camera" <-- "VelocityController"
+
+
+"GameEvent" <-- "WindowDescriptor, WindowName"
+"GameEvent" <-- "RenderSceneName, VertexBuffer, IndexBuffer"
+"GameEvent" <-- "WindowId, RenderSceneName, ShaderDescriptor, RenderSceneDescriptor, Vec<(UniformBufferName,Vec<u8>,wgpu::ShaderStages)>"
+"GameEvent" <-- "RenderSceneName, Visibility"
+
+
+"Game" <-- "RessourceDescriptor"
+"Game" <-- "Vec<Scene<E>>"
+"Game" <-- "Vec<Scene<E>>"
+"Game" <-- "Vec<Scene<E>>"
+"Game" <-- "Vec<(SceneName,Camera,UniformBufferName)>"
+
+
+"RessourceDescriptor" <-- "(Option<CameraDescriptor>,RenderSceneDescriptor)"
+"RessourceDescriptor" <-- "Vec<(Vec<RenderSceneName>,Option<CameraDescriptor>,RenderSceneDescriptor)>"
+
+
+"Scene" <-- "ShaderDescriptor"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"GameLogic" <-- "GameState"
+"GameLogic" <-- "KeyBindings"
+
+
+"BattleState" <-- "Vec<SkilledCharacter>"
+"BattleState" <-- "BattleActionManager"
+
+
+"GameState" <-- "BattleState, UIState"
+
+
+"UIState" <-- "Box<UIState>"
+
+
+
+
+"GraphicsProvider" <-- "Vec<(WindowId,RenderScene,wgpu::ShaderModule,ShaderDescriptor)>"
+"GraphicsProvider" <-- "Option<TextureProvider>"
+
+
+
+
+"RenderScene" <-- "Visibility"
+
+
+
+
+
+
+"TextureProvider" <-- "Vec<Texture>"
+
+
+
+
+
+
+
+
+
+
+
+
+"ManagerApplication" <-- "WindowManager<E>"
+"ManagerApplication" <-- "GraphicsProvider"
+
+
+
+
+
+
+
+
+
+
+
+
+"FlexBox" <-- "FlexDirection"
+"FlexBox" <-- "FlexOrigin"
+"FlexBox" <-- "Alignment"
+
+
+"ColorPair" <-- "Color"
+"ColorPair" <-- "Color"
+
+
+"BorderBoxStyle" <-- "ColorPair"
+"BorderBoxStyle" <-- "ColorPair"
+"BorderBoxStyle" <-- "ColorPair"
+
+
+"ImageStyle" <-- "SpritePosition"
+"ImageStyle" <-- "SpritePosition"
+"ImageStyle" <-- "SpritePosition"
+
+
+"BackgroundImageStyle" <-- "Color"
+"BackgroundImageStyle" <-- "Color"
+"BackgroundImageStyle" <-- "Color"
+"BackgroundImageStyle" <-- "SpritePosition"
+"BackgroundImageStyle" <-- "SpritePosition"
+"BackgroundImageStyle" <-- "SpritePosition"
+
+
+"PlainStyle" <-- "Color"
+"PlainStyle" <-- "Color"
+"PlainStyle" <-- "Color"
+
+
+"UnderLineStyle" <-- "Color"
+"UnderLineStyle" <-- "Color"
+"UnderLineStyle" <-- "Color"
+
+
+"ButtonStyle" <-- "BorderBoxStyle"
+"ButtonStyle" <-- "ImageStyle"
+"ButtonStyle" <-- "BackgroundImageStyle"
+"ButtonStyle" <-- "PlainStyle"
+"ButtonStyle" <-- "UnderLineStyle"
+
+
+"Button" <-- "Text"
+"Button" <-- "ButtonStyle"
+
+
+"FlexInputManager" <-- "FlexDirection"
+"FlexInputManager" <-- "FlexOrigin"
+"FlexInputManager" <-- "Alignment"
+
+
+"Image" <-- "Option<Color>"
+
+
+
+
+"Text" <-- "Color"
+"Text" <-- "FontSize"
+
+
+
+
+
+
+
+@enduml

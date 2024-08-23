@@ -25,7 +25,9 @@ impl PlantUml for Entity {
         let prefix = match self.entity_type {
             EntityType::Struct => format!("class \"{}\" {{\n", self.name),
             EntityType::Enum => format!("enum \"{}\" {{\n", self.name),
-            EntityType::Field(ref name) => format!("    + {}: {}\n", name, self.name),
+            EntityType::Field(ref ty) => format!("    {{field}} + {}: {}\n", self.name, ty),
+            EntityType::Variant(ref empty) if empty.is_empty() => format!("    {}\n", self.name),
+            EntityType::Variant(ref data) => format!("    {{field}} {}({})\n", self.name, data),
         };
 
         let body: Vec<String> = self
@@ -33,7 +35,7 @@ impl PlantUml for Entity {
             .clone()
             .into_iter()
             .map(|field| match field.entity_type {
-                EntityType::Field(_) => field.render(),
+                EntityType::Field(_) | EntityType::Variant(_) => field.render(),
                 _ => "".to_string(),
             })
             .collect();
@@ -49,12 +51,15 @@ impl PlantUml for Entity {
             }
 
             let source_set: HashSet<String> = HashSet::from_iter(source.clone());
-            let ent = make_dependencies(&f.name);
-
-            let cnt = source_set.intersection(&ent).collect::<HashSet<_>>().len();
-
-            if cnt >= 1 {
-                c.push(format!("\"{}\" <-- \"{}\"\n", self.name, f.name))
+            match &f.entity_type {
+                EntityType::Variant(ty) | EntityType::Field(ty) => {
+                    let ent = make_dependencies(ty);
+                    let cnt = source_set.intersection(&ent).collect::<HashSet<_>>().len();
+                    if cnt >= 1 {
+                        c.push(format!("\"{}\" <-- \"{}\"\n", self.name, ty))
+                    }
+                }
+                _ => {}
             }
         }
         c.join("")
@@ -66,6 +71,7 @@ pub enum EntityType {
     Struct,
     Enum,
     Field(String),
+    Variant(String),
 }
 
 fn make_dependencies(type_name: &str) -> HashSet<String> {

@@ -6,7 +6,9 @@ pub fn file_parser(file: syn::File) -> Vec<Entity> {
     let mut entities: Vec<Entity> = vec![];
     for item in file.items {
         match item {
-            syn::Item::Enum(_item) => (),
+            syn::Item::Enum(item) => {
+                entities.push(enum_parser(item));
+            }
             syn::Item::Struct(item) => {
                 entities.push(struct_parser(item));
             }
@@ -14,6 +16,27 @@ pub fn file_parser(file: syn::File) -> Vec<Entity> {
         }
     }
     entities
+}
+
+fn enum_parser(item: syn::ItemEnum) -> Entity {
+    let name = item.ident.to_string();
+    let variants = item.variants.into_iter().map(variant_parser).collect();
+    Entity::new(EntityType::Enum, &name, variants)
+}
+
+fn variant_parser(variant: syn::Variant) -> Entity {
+    let name = variant.ident.to_string();
+    if let syn::Fields::Unnamed(fields) = variant.fields {
+        let mut fields = fields
+            .unnamed
+            .into_iter()
+            .map(|field| type_parser(field.ty))
+            .fold(String::new(), |acc, x| acc + &x + ", ");
+        fields.pop();
+        fields.pop();
+        return Entity::new(EntityType::Variant(fields), &name, Vec::new());
+    }
+    Entity::new(EntityType::Variant("".to_string()), &name, Vec::new())
 }
 
 fn struct_parser(item: syn::ItemStruct) -> Entity {
@@ -41,15 +64,12 @@ fn field_parser(field: syn::Field) -> Entity {
         .map(|ident| ident.to_string())
         .unwrap_or_else(|| "".to_string());
 
-    if has_dependencies(&type_parser(field.ty.clone())) {
-        let fields = make_dependencies(&type_parser(field.ty.clone()));
-        return Entity::new(
-            EntityType::Field(name),
-            &type_parser(field.ty),
-            vec![fields],
-        );
+    let ty = type_parser(field.ty);
+    if has_dependencies(&ty) {
+        let fields = make_dependencies(&ty);
+        return Entity::new(EntityType::Field(ty), &name, vec![fields]);
     }
-    Entity::new(EntityType::Field(name), &type_parser(field.ty), Vec::new())
+    Entity::new(EntityType::Field(ty), &name, Vec::new())
 }
 
 fn type_parser(type_: syn::Type) -> String {
